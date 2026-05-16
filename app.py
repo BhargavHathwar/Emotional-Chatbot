@@ -5,6 +5,7 @@ import random
 import logging
 import pandas as pd
 import re
+import threading
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -21,6 +22,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# --------------------------------
+# Global model state
+# --------------------------------
+MODEL_LOADED = False
+model = None
+vectorizer = None
 
 # --------------------------------
 # Multiple Responses Per Emotion
@@ -82,8 +90,6 @@ def keyword_override(text, ml_emotion):
 # --------------------------------
 def train_and_save():
     logger.info("Training model from scratch...")
-    nltk.download("stopwords", quiet=True)
-    nltk.download("wordnet", quiet=True)
     stop_words = set(stopwords.words("english"))
     lemmatizer = WordNetLemmatizer()
 
@@ -111,40 +117,45 @@ def train_and_save():
     data["emotion"] = data["emotion"].map(emotion_map)
     data = data.dropna()
 
-    vectorizer = TfidfVectorizer(max_features=6000, ngram_range=(1, 2))
-    X = vectorizer.fit_transform(data["text"])
+    vec = TfidfVectorizer(max_features=6000, ngram_range=(1, 2))
+    X = vec.fit_transform(data["text"])
     y = data["emotion"]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = LogisticRegression(max_iter=2000)
-    model.fit(X_train, y_train)
+    mdl = LogisticRegression(max_iter=2000)
+    mdl.fit(X_train, y_train)
 
-    pickle.dump(model, open(os.path.join(BASE_DIR, "emotion_model.pkl"), "wb"))
-    pickle.dump(vectorizer, open(os.path.join(BASE_DIR, "vectorizer.pkl"), "wb"))
+    pickle.dump(mdl, open(os.path.join(BASE_DIR, "emotion_model.pkl"), "wb"))
+    pickle.dump(vec, open(os.path.join(BASE_DIR, "vectorizer.pkl"), "wb"))
     logger.info("Model trained and saved successfully.")
-    return model, vectorizer
+    return mdl, vec
 
 # --------------------------------
-# Load or Retrain Model
+# Load or Retrain in Background
 # --------------------------------
-try:
-    model_path = os.path.join(BASE_DIR, "emotion_model.pkl")
-    vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
-    model = pickle.load(open(model_path, "rb"))
-    vectorizer = pickle.load(open(vectorizer_path, "rb"))
-    # Sanity check with a test prediction
-    vectorizer.transform(["test"])
-    model.predict(vectorizer.transform(["test"]))
-    logger.info("Model loaded successfully.")
-    MODEL_LOADED = True
-except Exception as e:
-    logger.warning(f"Model load/sanity check failed ({e}), retraining...")
+def load_or_train():
+    global model, vectorizer, MODEL_LOADED
     try:
-        model, vectorizer = train_and_save()
+        model_path = os.path.join(BASE_DIR, "emotion_model.pkl")
+        vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
+        model = pickle.load(open(model_path, "rb"))
+        vectorizer = pickle.load(open(vectorizer_path, "rb"))
+        vectorizer.transform(["test"])
+        model.predict(vectorizer.transform(["test"]))
+        logger.info("Model loaded successfully.")
         MODEL_LOADED = True
-    except Exception as e2:
-        logger.error(f"Retraining failed: {e2}")
-        MODEL_LOADED = False
+    except Exception as e:
+        logger.warning(f"Model load failed ({e}), retraining...")
+        try:
+            model, vectorizer = train_and_save()
+            MODEL_LOADED = True
+            logger.info("Retraining complete.")
+        except Exception as e2:
+            logger.error(f"Retraining failed: {e2}")
+            MODEL_LOADED = False
+
+# Start in background so gunicorn binds to port immediately
+threading.Thread(target=load_or_train, daemon=True).start()
 
 # --------------------------------
 # Home Page
@@ -159,7 +170,7 @@ def home():
 @app.route("/health")
 def health():
     return jsonify({
-        "status": "ok" if MODEL_LOADED else "degraded",
+        "status": "ok" if MODEL_LOADED else "loading",
         "model_loaded": MODEL_LOADED
     })
 
@@ -169,7 +180,7 @@ def health():
 @app.route("/predict", methods=["POST"])
 def predict():
     if not MODEL_LOADED:
-        return jsonify({"error": "Model not available"}), 503
+        return jsonify({"error": "Model is still loading, please wait 30 seconds and try again."}), 503
 
     data = request.get_json(silent=True)
     if not data or "message" not in data:
