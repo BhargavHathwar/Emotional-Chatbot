@@ -3,6 +3,14 @@ import pickle
 import os
 import random
 import logging
+import pandas as pd
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -10,17 +18,9 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-try:
-    model_path = os.path.join(BASE_DIR, "emotion_model.pkl")
-    vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
-    model = pickle.load(open(model_path, "rb"))
-    vectorizer = pickle.load(open(vectorizer_path, "rb"))
-    logger.info("Model and vectorizer loaded successfully.")
-    MODEL_LOADED = True
-except Exception as e:
-    logger.error(f"Failed to load model: {e}")
-    MODEL_LOADED = False
-
+# --------------------------------
+# Multiple Responses Per Emotion
+# --------------------------------
 responses = {
     "happy": [
         "That's wonderful to hear! 😊 Keep riding that positive wave!",
@@ -49,6 +49,9 @@ responses = {
     ],
 }
 
+# --------------------------------
+# Keyword Override (negation-aware)
+# --------------------------------
 NEGATIONS = {"not", "no", "never", "don't", "didn't", "isn't", "wasn't", "can't", "won't"}
 
 KEYWORD_MAP = {
@@ -70,10 +73,85 @@ def keyword_override(text, ml_emotion):
                 return emotion
     return ml_emotion
 
+# --------------------------------
+# Train and Save Model
+# --------------------------------
+def train_and_save():
+    logger.info("Training model from scratch...")
+    nltk.download("stopwords", quiet=True)
+    nltk.download("wordnet", quiet=True)
+    stop_words = set(stopwords.words("english"))
+    lemmatizer = WordNetLemmatizer()
+
+    def preprocess(text):
+        text = text.lower()
+        text = re.sub(r"http\S+", "", text)
+        text = re.sub(r"[^a-zA-Z\s]", "", text)
+        words = text.split()
+        words = [w for w in words if w not in stop_words]
+        words = [lemmatizer.lemmatize(w) for w in words]
+        return " ".join(words)
+
+    data = pd.read_csv(os.path.join(BASE_DIR, "tweet_emotions.csv"))
+    data = data[["content", "sentiment"]]
+    data.columns = ["text", "emotion"]
+    data["text"] = data["text"].apply(preprocess)
+
+    emotion_map = {
+        "happiness": "happy", "love": "happy", "fun": "happy", "enthusiasm": "happy",
+        "sadness": "sad", "empty": "sad",
+        "worry": "stress",
+        "anger": "angry", "hate": "angry",
+        "boredom": "neutral", "neutral": "neutral", "relief": "neutral", "surprise": "neutral"
+    }
+    data["emotion"] = data["emotion"].map(emotion_map)
+    data = data.dropna()
+
+    vectorizer = TfidfVectorizer(max_features=6000, ngram_range=(1, 2))
+    X = vectorizer.fit_transform(data["text"])
+    y = data["emotion"]
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    model = LogisticRegression(max_iter=2000)
+    model.fit(X_train, y_train)
+
+    pickle.dump(model, open(os.path.join(BASE_DIR, "emotion_model.pkl"), "wb"))
+    pickle.dump(vectorizer, open(os.path.join(BASE_DIR, "vectorizer.pkl"), "wb"))
+    logger.info("Model trained and saved successfully.")
+    return model, vectorizer
+
+# --------------------------------
+# Load or Retrain Model
+# --------------------------------
+try:
+    model_path = os.path.join(BASE_DIR, "emotion_model.pkl")
+    vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
+    model = pickle.load(open(model_path, "rb"))
+    vectorizer = pickle.load(open(vectorizer_path, "rb"))
+    # Sanity check with a test prediction
+    vectorizer.transform(["test"])
+    model.predict(vectorizer.transform(["test"]))
+    logger.info("Model loaded successfully.")
+    MODEL_LOADED = True
+except Exception as e:
+    logger.warning(f"Model load/sanity check failed ({e}), retraining...")
+    try:
+        model, vectorizer = train_and_save()
+        MODEL_LOADED = True
+    except Exception as e2:
+        logger.error(f"Retraining failed: {e2}")
+        MODEL_LOADED = False
+
+# --------------------------------
+# Home Page
+# --------------------------------
 @app.route("/")
 def home():
     return render_template("index.html")
 
+# --------------------------------
+# Health Check
+# --------------------------------
 @app.route("/health")
 def health():
     return jsonify({
@@ -81,6 +159,9 @@ def health():
         "model_loaded": MODEL_LOADED
     })
 
+# --------------------------------
+# Emotion Prediction
+# --------------------------------
 @app.route("/predict", methods=["POST"])
 def predict():
     if not MODEL_LOADED:
@@ -121,6 +202,9 @@ def predict():
         logger.error(f"Prediction error: {e}")
         return jsonify({"error": "Prediction failed. Please try again."}), 500
 
+# --------------------------------
+# Run Server
+# --------------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
