@@ -4,92 +4,125 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Emotion AI Chatbot</title>
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<div class="app-layout">
+<div class="app-shell">
 
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <span class="sidebar-title">Emotion Timeline</span>
-      <span class="sidebar-sub">This session</span>
-    </div>
-
-    <div class="chart-wrap">
-      <canvas id="emotionChart"></canvas>
-      <div id="chart-empty" class="chart-empty">Start chatting to see your emotion trend</div>
-    </div>
-
-    <div class="emotion-legend">
-      <div class="legend-label">Emotions</div>
-      <div class="legend-item"><span class="dot happy"></span> Happy</div>
-      <div class="legend-item"><span class="dot sad"></span> Sad</div>
-      <div class="legend-item"><span class="dot stress"></span> Stressed</div>
-      <div class="legend-item"><span class="dot angry"></span> Angry</div>
-      <div class="legend-item"><span class="dot neutral"></span> Neutral</div>
-    </div>
-
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="stat-value" id="stat-messages">0</div>
-        <div class="stat-label">Messages</div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><circle cx="18" cy="6" r="4" fill="currentColor" stroke="none" opacity="0.3"/><circle cx="18" cy="6" r="2" fill="currentColor" stroke="none"/>
+        </svg>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="stat-dominant">—</div>
-        <div class="stat-label">Top mood</div>
+      <div>
+        <div class="brand-name">EmoAI</div>
+        <div class="brand-sub">Emotional Intelligence</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Mood Timeline</div>
+      <div class="chart-card">
+        <canvas id="emotionChart"></canvas>
+        <div id="chart-empty" class="chart-empty">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Chat to see your mood trend</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Legend</div>
+      <div class="legend-grid">
+        <div class="legend-item"><span class="dot happy"></span>Happy</div>
+        <div class="legend-item"><span class="dot sad"></span>Sad</div>
+        <div class="legend-item"><span class="dot stress"></span>Stressed</div>
+        <div class="legend-item"><span class="dot angry"></span>Angry</div>
+        <div class="legend-item"><span class="dot neutral"></span>Neutral</div>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-pill">
+        <div class="stat-num" id="stat-messages">0</div>
+        <div class="stat-lbl">Messages</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-num" id="stat-dominant">—</div>
+        <div class="stat-lbl">Top mood</div>
       </div>
     </div>
   </aside>
 
-  <main class="chat-panel">
+  <div class="main-wrap">
 
-    <div class="chat-header">
-      <div class="bot-info">
+    <header class="topbar">
+      <button class="menu-toggle" id="menu-toggle" aria-label="Toggle sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-center">
         <div class="bot-avatar">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="11" width="18" height="10" rx="2"/>
-            <path d="M9 11V7a3 3 0 0 1 6 0v4"/>
-            <circle cx="9" cy="16" r="1" fill="currentColor" stroke="none"/>
-            <circle cx="15" cy="16" r="1" fill="currentColor" stroke="none"/>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/>
+            <circle cx="9" cy="16" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="16" r="1" fill="currentColor" stroke="none"/>
           </svg>
         </div>
-        <div>
-          <h2>Emotion AI</h2>
-          <p class="status-line"><span class="status-dot"></span> Online &amp; ready</p>
+        <div class="topbar-info">
+          <span class="topbar-title">Emotion AI</span>
+          <span class="topbar-status"><span class="status-dot"></span>Online</span>
         </div>
       </div>
       <button class="clear-btn" onclick="clearChat()" title="Clear chat">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
         </svg>
       </button>
-    </div>
+    </header>
 
     <div id="chatbox" class="chatbox">
-      <div class="welcome-msg">
-        <div class="welcome-icon">👋</div>
-        <p>Hi! I'm your Emotion AI assistant. Tell me how you're feeling and I'll do my best to understand and support you.</p>
+      <div class="welcome-block">
+        <div class="welcome-anim">
+          <div class="pulse-ring"></div>
+          <div class="welcome-emoji">🧠</div>
+        </div>
+        <h2 class="welcome-title">How are you feeling today?</h2>
+        <p class="welcome-sub">I'll read your emotions and respond with empathy. Everything you share stays between us.</p>
+        <div class="welcome-chips">
+          <button class="chip" onclick="quickSend(this)">😊 Feeling great!</button>
+          <button class="chip" onclick="quickSend(this)">😔 A bit down today</button>
+          <button class="chip" onclick="quickSend(this)">😤 Really stressed</button>
+          <button class="chip" onclick="quickSend(this)">😐 Just okay</button>
+        </div>
       </div>
     </div>
 
-    <div id="typing" class="typing-indicator" style="display:none">
-      <span></span><span></span><span></span>
+    <div id="typing" class="typing-wrap" style="display:none">
+      <div class="typing-bubble">
+        <span></span><span></span><span></span>
+      </div>
+      <span class="typing-label">Emotion AI is thinking…</span>
     </div>
 
-    <div class="input-area">
-      <input id="message" type="text" placeholder="Tell me how you feel…" autocomplete="off" maxlength="500">
-      <button id="send-btn" onclick="sendMessage()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-        </svg>
-      </button>
+    <div class="input-bar">
+      <div class="input-wrap">
+        <input id="message" type="text" placeholder="Share how you're feeling…" autocomplete="off" maxlength="500">
+        <button id="send-btn" onclick="sendMessage()" aria-label="Send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+      <p class="input-hint">Press Enter to send · Your feelings are safe here</p>
     </div>
 
-  </main>
-
+  </div>
 </div>
+
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="/static/script.js"></script>

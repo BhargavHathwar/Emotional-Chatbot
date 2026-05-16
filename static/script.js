@@ -1,9 +1,9 @@
 const EMOTION_CONFIG = {
-  happy:   { emoji: "😊", color: "#e8944a", label: "Happy"   },
-  sad:     { emoji: "💙", color: "#5b90cc", label: "Sad"     },
-  stress:  { emoji: "😟", color: "#9b72cf", label: "Stressed"},
-  angry:   { emoji: "😠", color: "#d95555", label: "Angry"   },
-  neutral: { emoji: "🙂", color: "#8a9a88", label: "Neutral" },
+  happy:   { emoji: "😊", color: "#f59e0b", label: "Happy"   },
+  sad:     { emoji: "💙", color: "#0ea5e9", label: "Sad"     },
+  stress:  { emoji: "😟", color: "#6c63ff", label: "Stressed"},
+  angry:   { emoji: "😠", color: "#f43f5e", label: "Angry"   },
+  neutral: { emoji: "🙂", color: "#14b8a6", label: "Neutral" },
 };
 
 let messageCount   = 0;
@@ -19,36 +19,40 @@ function initChart() {
       labels: [],
       datasets: [{
         data: [],
-        borderColor: "#c4703a",
-        backgroundColor: "rgba(196,112,58,0.07)",
-        borderWidth: 2,
+        borderColor: "#6c63ff",
+        backgroundColor: "rgba(108,99,255,0.08)",
+        borderWidth: 2.5,
         pointRadius: 5,
         pointBackgroundColor: [],
         pointBorderColor: "#fff",
-        pointBorderWidth: 1.5,
-        tension: 0.4,
+        pointBorderWidth: 2,
+        tension: 0.45,
         fill: true,
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 400 },
-      plugins: { legend: { display: false }, tooltip: {
-        callbacks: {
-          label: ctx => {
-            const e = emotionHistory[ctx.dataIndex];
-            return e ? `${EMOTION_CONFIG[e.emotion]?.label} (${e.confidence}%)` : "";
+      animation: { duration: 500 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const e = emotionHistory[ctx.dataIndex];
+              return e ? `${EMOTION_CONFIG[e.emotion]?.label} (${e.confidence}%)` : "";
+            },
+            title: ctx => `Message #${parseInt(ctx[0].label)}`,
           },
-          title: ctx => `Message #${parseInt(ctx[0].label)}`,
-        },
-        backgroundColor: "rgba(44,36,22,0.88)",
-        titleColor: "#faf8f5",
-        bodyColor: "#c8b8a0",
-        padding: 10,
-        borderColor: "rgba(44,36,22,0.1)",
-        borderWidth: 1,
-      }},
+          backgroundColor: "rgba(30,27,75,0.92)",
+          titleColor: "#f0eeff",
+          bodyColor: "#b5b2e8",
+          padding: 10,
+          cornerRadius: 10,
+          borderColor: "rgba(108,99,255,0.3)",
+          borderWidth: 1,
+        }
+      },
       scales: {
         x: { display: false },
         y: {
@@ -56,10 +60,10 @@ function initChart() {
           ticks: {
             stepSize: 1,
             callback: v => ({ 5:"😊", 4:"🙂", 3:"😟", 2:"💙", 1:"😠" }[v] || ""),
-            color: "rgba(44,36,22,0.35)",
+            color: "rgba(30,27,75,0.35)",
             font: { size: 14 },
           },
-          grid: { color: "rgba(44,36,22,0.06)" },
+          grid: { color: "rgba(30,27,75,0.05)" },
           border: { display: false },
         }
       }
@@ -109,11 +113,20 @@ function appendMessage(html, cls) {
   chatbox.scrollTop = chatbox.scrollHeight;
 }
 
+function quickSend(btn) {
+  const text = btn.textContent.replace(/^[\s\S]{2}/, "").trim();
+  document.getElementById("message").value = text;
+  sendMessage();
+}
+
 function sendMessage() {
   const input = document.getElementById("message");
   const btn   = document.getElementById("send-btn");
   const msg   = input.value.trim();
   if (!msg) return;
+
+  const welcome = document.querySelector(".welcome-block");
+  if (welcome) welcome.remove();
 
   messageCount++;
   input.value = "";
@@ -174,10 +187,21 @@ function sendMessage() {
 }
 
 function clearChat() {
-  document.getElementById("chatbox").innerHTML = `
-    <div class="welcome-msg">
-      <div class="welcome-icon">👋</div>
-      <p>Hi! I'm your Emotion AI assistant. Tell me how you're feeling and I'll do my best to understand and support you.</p>
+  const chatbox = document.getElementById("chatbox");
+  chatbox.innerHTML = `
+    <div class="welcome-block">
+      <div class="welcome-anim">
+        <div class="pulse-ring"></div>
+        <div class="welcome-emoji">🧠</div>
+      </div>
+      <h2 class="welcome-title">How are you feeling today?</h2>
+      <p class="welcome-sub">I'll read your emotions and respond with empathy. Everything you share stays between us.</p>
+      <div class="welcome-chips">
+        <button class="chip" onclick="quickSend(this)">😊 Feeling great!</button>
+        <button class="chip" onclick="quickSend(this)">😔 A bit down today</button>
+        <button class="chip" onclick="quickSend(this)">😤 Really stressed</button>
+        <button class="chip" onclick="quickSend(this)">😐 Just okay</button>
+      </div>
     </div>`;
   messageCount = 0;
   emotionHistory = [];
@@ -188,12 +212,27 @@ function clearChat() {
   chart.data.datasets[0].data = [];
   chart.data.datasets[0].pointBackgroundColor = [];
   chart.update();
-  document.getElementById("chart-empty").style.display = "block";
+  document.getElementById("chart-empty").style.display = "flex";
 }
 
 document.addEventListener("DOMContentLoaded", () => {
   initChart();
+
   document.getElementById("message").addEventListener("keypress", e => {
     if (e.key === "Enter") sendMessage();
+  });
+
+  const toggle = document.getElementById("menu-toggle");
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+
+  toggle.addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+    overlay.classList.toggle("open");
+  });
+
+  overlay.addEventListener("click", () => {
+    sidebar.classList.remove("open");
+    overlay.classList.remove("open");
   });
 });
