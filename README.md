@@ -10,6 +10,8 @@ A modern emotion-aware chatbot built using Machine Learning, Flask, NLP, and an 
 
 ---
 
+#Preview : https://emotional-chatbot-zxbq.onrender.com/
+
 # Features
 
 * Real-time emotion detection from text
