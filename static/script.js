@@ -1,9 +1,9 @@
 const EMOTION_CONFIG = {
-  happy:   { emoji: "😊", color: "#f59e0b", label: "Happy"   },
-  sad:     { emoji: "💙", color: "#3b82f6", label: "Sad"     },
-  stress:  { emoji: "😟", color: "#8b5cf6", label: "Stressed"},
-  angry:   { emoji: "😠", color: "#ef4444", label: "Angry"   },
-  neutral: { emoji: "🙂", color: "#6b7280", label: "Neutral" },
+  happy:   { emoji: "😊", color: "#e8944a", label: "Happy"   },
+  sad:     { emoji: "💙", color: "#5b90cc", label: "Sad"     },
+  stress:  { emoji: "😟", color: "#9b72cf", label: "Stressed"},
+  angry:   { emoji: "😠", color: "#d95555", label: "Angry"   },
+  neutral: { emoji: "🙂", color: "#8a9a88", label: "Neutral" },
 };
 
 let messageCount   = 0;
@@ -19,8 +19,8 @@ function initChart() {
       labels: [],
       datasets: [{
         data: [],
-        borderColor: "#a78bfa",
-        backgroundColor: "rgba(167,139,250,0.08)",
+        borderColor: "#c4703a",
+        backgroundColor: "rgba(196,112,58,0.07)",
         borderWidth: 2,
         pointRadius: 5,
         pointBackgroundColor: [],
@@ -42,11 +42,11 @@ function initChart() {
           },
           title: ctx => `Message #${parseInt(ctx[0].label)}`,
         },
-        backgroundColor: "rgba(15,15,25,0.85)",
-        titleColor: "#e2e8f0",
-        bodyColor: "#94a3b8",
+        backgroundColor: "rgba(44,36,22,0.88)",
+        titleColor: "#faf8f5",
+        bodyColor: "#c8b8a0",
         padding: 10,
-        borderColor: "rgba(255,255,255,0.08)",
+        borderColor: "rgba(44,36,22,0.1)",
         borderWidth: 1,
       }},
       scales: {
@@ -56,10 +56,10 @@ function initChart() {
           ticks: {
             stepSize: 1,
             callback: v => ({ 5:"😊", 4:"🙂", 3:"😟", 2:"💙", 1:"😠" }[v] || ""),
-            color: "rgba(255,255,255,0.35)",
+            color: "rgba(44,36,22,0.35)",
             font: { size: 14 },
           },
-          grid: { color: "rgba(255,255,255,0.05)" },
+          grid: { color: "rgba(44,36,22,0.06)" },
           border: { display: false },
         }
       }
