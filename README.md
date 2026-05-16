@@ -10,12 +10,6 @@ A modern emotion-aware chatbot built using Machine Learning, Flask, NLP, and an 
 
 ---
 
-## Preview
-
-<img width="100%" alt="Emotion AI Chatbot Banner" src="https://raw.githubusercontent.com/github/explore/main/topics/artificial-intelligence/artificial-intelligence.png" />
-
----
-
 # Features
 
 * Real-time emotion detection from text
