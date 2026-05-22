@@ -314,28 +314,15 @@ def synonym_lookup(text: str) -> str | None:
 # Train and save model (fallback if pkl missing)
 # ─────────────────────────────────────────────
 def train_and_save():
-    import pandas as pd
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
-    from sklearn.model_selection import train_test_split
+    import csv, random as _random
 
-    logger.info("Training model from scratch (memory-optimised)...")
+    logger.info("Training model (ultra-lean, no pandas, 600 rows/class max)...")
 
     _stop_words = set(stopwords.words("english"))
     _keep       = {"not", "no", "never", "hate", "love", "don't", "didn't", "can't", "won't"}
     _eff_stop   = _stop_words - _keep
-
-    # Simple preprocess — no lemmatization to save RAM & time
-    def _preprocess(text):
-        text  = str(text).lower()
-        text  = re.sub(r"http\S+", "", text)
-        text  = re.sub(r"[^a-zA-Z\s']", "", text)
-        words = [w for w in text.split() if w not in _eff_stop]
-        return " ".join(words)
-
-    data = pd.read_csv(os.path.join(BASE_DIR, "tweet_emotions.csv"))
-    data = data[["content", "sentiment"]]
-    data.columns = ["text", "emotion"]
 
     emotion_map = {
         "happiness": "joy", "fun": "joy", "enthusiasm": "joy", "relief": "joy",
@@ -346,93 +333,99 @@ def train_and_save():
         "neutral":   "neutral", "boredom": "neutral",
         "surprise":  "surprise",
     }
-    data["emotion"] = data["emotion"].map(emotion_map)
-    data = data.dropna()
 
-    # Sample max 15k rows per class to keep memory under 512 MB
-    data = data.groupby("emotion", group_keys=False).apply(
-        lambda x: x.sample(min(len(x), 2000), random_state=42)
-    ).reset_index(drop=True)
+    _random.seed(42)
+    buckets = {e: [] for e in set(emotion_map.values())}
 
-    data["text"] = data["text"].apply(_preprocess)
-    data = data[data["text"].str.strip() != ""]
+    csv_path = os.path.join(BASE_DIR, "tweet_emotions.csv")
+    with open(csv_path, encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            mapped = emotion_map.get(row.get("sentiment", "").strip())
+            if mapped is None:
+                continue
+            text = row.get("content", "").strip()
+            if not text:
+                continue
+            if len(buckets[mapped]) < 600:
+                buckets[mapped].append((text, mapped))
+            elif _random.random() < 0.05:
+                buckets[mapped][_random.randint(0, 599)] = (text, mapped)
 
-    logger.info(f"Training on {len(data)} rows across {data['emotion'].nunique()} emotions")
+    texts, labels = [], []
+    for items in buckets.values():
+        for t, l in items:
+            t = t.lower()
+            t = re.sub(r"http\S+", "", t)
+            t = re.sub(r"[^a-zA-Z\s']", "", t)
+            t = " ".join(w for w in t.split() if w not in _eff_stop)
+            if t.strip():
+                texts.append(t)
+                labels.append(l)
 
-    # Unigrams only + smaller vocab to keep sparse matrix small
-    vec = TfidfVectorizer(max_features=5000, ngram_range=(1, 1), sublinear_tf=True, min_df=2)
-    X   = vec.fit_transform(data["text"])
-    y   = data["emotion"]
+    logger.info(f"Training on {len(texts)} samples across {len(set(labels))} emotions")
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-    mdl = LogisticRegression(max_iter=1000, C=1.0, solver="lbfgs", multi_class="multinomial")
-    mdl.fit(X_train, y_train)
-
-    acc = mdl.score(X_test, y_test)
-    logger.info(f"Model accuracy: {acc:.2%}")
+    vec = TfidfVectorizer(max_features=3000, ngram_range=(1, 1), sublinear_tf=True, min_df=2)
+    X   = vec.fit_transform(texts)
+    mdl = LogisticRegression(max_iter=500, C=1.0, solver="saga", n_jobs=1)
+    mdl.fit(X, labels)
 
     pickle.dump(mdl, open(os.path.join(BASE_DIR, "emotion_model.pkl"), "wb"))
     pickle.dump(vec, open(os.path.join(BASE_DIR, "vectorizer.pkl"),    "wb"))
     pickle.dump(_eff_stop, open(os.path.join(BASE_DIR, "stop_words.pkl"), "wb"))
-    logger.info("Model trained and saved.")
+    logger.info("Model trained and saved successfully.")
     return mdl, vec, _eff_stop
 
 
 # ─────────────────────────────────────────────
 # Load or retrain in background thread
 # ─────────────────────────────────────────────
-def _sklearn_version_mismatch():
-    """Return True if the saved pkl was built with a different sklearn version."""
-    import sklearn
-    model_path = os.path.join(BASE_DIR, "emotion_model.pkl")
-    try:
-        import warnings
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            tmp = pickle.load(open(model_path, "rb"))
-            for w in caught:
-                if "InconsistentVersionWarning" in str(w.category.__name__):
-                    logger.warning("sklearn version mismatch detected — will retrain.")
-                    return True
-    except Exception:
-        return True
-    return False
-
-
 def load_or_train():
     global model, vectorizer, effective_stop_words, MODEL_LOADED
+    model_path      = os.path.join(BASE_DIR, "emotion_model.pkl")
+    vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
+    stop_words_path = os.path.join(BASE_DIR, "stop_words.pkl")
+
+    # Always retrain fresh — no pkl files shipped with repo
+    if not os.path.exists(model_path):
+        logger.info("No pkl found — training fresh model...")
+        try:
+            model, vectorizer, effective_stop_words = train_and_save()
+            MODEL_LOADED = True
+            logger.info("Training complete. Model ready.")
+        except Exception as e:
+            logger.error(f"Training failed: {e}")
+            MODEL_LOADED = False
+        return
+
+    # pkl exists — try to load it
     try:
-        model_path      = os.path.join(BASE_DIR, "emotion_model.pkl")
-        vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
-        stop_words_path = os.path.join(BASE_DIR, "stop_words.pkl")
-
-        # Force retrain if pkl was built with a different sklearn version
-        if _sklearn_version_mismatch():
-            raise ValueError("sklearn version mismatch — retraining for compatibility")
-
-        model      = pickle.load(open(model_path,      "rb"))
-        vectorizer = pickle.load(open(vectorizer_path, "rb"))
-
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model      = pickle.load(open(model_path,      "rb"))
+            vectorizer = pickle.load(open(vectorizer_path, "rb"))
         if os.path.exists(stop_words_path):
             effective_stop_words = pickle.load(open(stop_words_path, "rb"))
         else:
             _base = set(stopwords.words("english"))
             _keep = {"not", "no", "never", "hate", "love", "don't", "didn't", "can't", "won't"}
             effective_stop_words = _base - _keep
-
         vectorizer.transform(["test"])
         model.predict(vectorizer.transform(["test"]))
-        logger.info("Model loaded successfully.")
+        logger.info("Model loaded from pkl successfully.")
         MODEL_LOADED = True
-
     except Exception as e:
-        logger.warning(f"Model load failed ({e}), retraining...")
+        logger.warning(f"pkl load failed ({e}) — retraining...")
         try:
+            # Delete bad pkls first
+            for p in [model_path, vectorizer_path, stop_words_path]:
+                if os.path.exists(p): os.remove(p)
             model, vectorizer, effective_stop_words = train_and_save()
             MODEL_LOADED = True
-            logger.info("Retraining complete.")
+            logger.info("Retrain complete. Model ready.")
         except Exception as e2:
-            logger.error(f"Retraining failed: {e2}")
+            logger.error(f"Retrain also failed: {e2}")
             MODEL_LOADED = False
 
 
