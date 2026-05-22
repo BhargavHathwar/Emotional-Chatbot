@@ -139,9 +139,10 @@ SYNONYM_MAP = {
         # Romantic / falling for someone
         "falling", "fallen", "fancy", "fancying", "fancies",
         "flirt", "flirting", "flirtatious",
-        "date", "dating", "girlfriend", "boyfriend", "partner", "sweetheart",
-        "butterflies", "feelings", "like", "liking",
-        "valentine", "dreaming",
+        "girlfriend", "boyfriend", "partner", "sweetheart",
+        "butterflies", "valentine", "dreaming",
+        # "feelings" is safe now that "like" is removed — "feelings for X" is romantic
+        "feelings",
     },
 
     # ── SADNESS / GRIEF ───────────────────────────────────────────────────
@@ -160,6 +161,7 @@ SYNONYM_MAP = {
         "wound", "wounded", "suffer", "suffering",
         "disappoint", "disappointed", "disappointment",
         "disillusion", "disillusioned", "dishearten", "disheartened",
+        "disconnected", "disconnect", "distant", "drifting", "apart", "unloved", "unwanted", "neglect", "neglected",
         "gutted", "bummed", "homesick",
         "down", "blue", "low", "rough", "rotten", "awful",
     },
@@ -182,6 +184,9 @@ SYNONYM_MAP = {
         "insecure", "insecurity", "vulnerable",
         "shake", "shaking", "tremble", "trembling", "sweat", "sweating",
         "paranoid", "paranoia", "freaking", "spiral", "spiraling",
+        # Relationship distress
+        "toxic", "trapped", "suffocate", "suffocating", "stuck", "confuse", "confused", "confusion",
+        "complicated", "turbulent", "unstable", "draining", "exhausting", "hell",
     },
 
     # ── ANGER / HATE / DISGUST ────────────────────────────────────────────
@@ -549,10 +554,14 @@ def predict():
             f"[{detection_method}] Predicted: {final_emotion} ({confidence}%) | Input: {message[:60]}"
         )
 
+        # Only show top2 ML pills when ML was actually used (not overridden by synonym)
+        # When synonym wins, top2 from ML is misleading — hide it
+        top2_display = top2_result if detection_method == "ml_model" else []
+
         return jsonify({
             "emotion":    final_emotion,
             "confidence": confidence,
-            "top2":       top2_result,
+            "top2":       top2_display,
             "reply":      reply,
             "detection":  detection_method,
         })
