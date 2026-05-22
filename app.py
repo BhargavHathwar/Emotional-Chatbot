@@ -371,12 +371,34 @@ def train_and_save():
 # ─────────────────────────────────────────────
 # Load or retrain in background thread
 # ─────────────────────────────────────────────
+def _sklearn_version_mismatch():
+    """Return True if the saved pkl was built with a different sklearn version."""
+    import sklearn
+    model_path = os.path.join(BASE_DIR, "emotion_model.pkl")
+    try:
+        import warnings
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            tmp = pickle.load(open(model_path, "rb"))
+            for w in caught:
+                if "InconsistentVersionWarning" in str(w.category.__name__):
+                    logger.warning("sklearn version mismatch detected — will retrain.")
+                    return True
+    except Exception:
+        return True
+    return False
+
+
 def load_or_train():
     global model, vectorizer, effective_stop_words, MODEL_LOADED
     try:
         model_path      = os.path.join(BASE_DIR, "emotion_model.pkl")
         vectorizer_path = os.path.join(BASE_DIR, "vectorizer.pkl")
         stop_words_path = os.path.join(BASE_DIR, "stop_words.pkl")
+
+        # Force retrain if pkl was built with a different sklearn version
+        if _sklearn_version_mismatch():
+            raise ValueError("sklearn version mismatch — retraining for compatibility")
 
         model      = pickle.load(open(model_path,      "rb"))
         vectorizer = pickle.load(open(vectorizer_path, "rb"))
