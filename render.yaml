@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: emotion-chatbot
+    runtime: python
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt && python -c \"import nltk; nltk.download('stopwords'); nltk.download('wordnet'); nltk.download('omw-1.4')\""
+    startCommand: "gunicorn app:app --timeout 120 --workers 1 --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
