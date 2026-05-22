@@ -1,3 +1,28 @@
+// ── Startup health check ──────────────────────────────────────────────────────
+// On page load, ping /health. If model isn't ready, show a banner.
+// If server is unreachable (cold start), keep retrying and inform the user.
+function checkServerHealth() {
+  const banner = document.getElementById('loading-banner');
+  if (!banner) return;
+  fetch('/health', { method: 'GET' })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.model_loaded) {
+        banner.style.display = 'flex';
+        banner.textContent = '⏳ AI model is warming up — please wait about 30 seconds...';
+        setTimeout(checkServerHealth, 5000);
+      } else {
+        banner.style.display = 'none';
+      }
+    })
+    .catch(() => {
+      if (!banner) return;
+      banner.style.display = 'flex';
+      banner.textContent = '🔄 Server is waking up (cold start) — this takes up to 60 seconds. Hang tight!';
+      setTimeout(checkServerHealth, 8000);
+    });
+}
+
 const EMOTION_CONFIG = {
   joy:      { emoji: "😊", color: "#e8944a", label: "Happy"    },
   love:     { emoji: "💖", color: "#e8607a", label: "Love"     },
@@ -172,7 +197,8 @@ function sendMessage() {
   .catch(() => {
     typingEl.style.display = "none";
     btn.disabled = false;
-    appendMessage(`<span>⚠️ Connection error. Please try again.</span>`, "bot error-msg");
+    appendMessage(`<span>⚠️ Server unreachable — it may be waking up. Wait 30 seconds and try again.</span>`, "bot error-msg");
+    checkServerHealth();
   });
 }
 
@@ -196,6 +222,7 @@ function clearChat() {
 
 document.addEventListener("DOMContentLoaded", () => {
   initChart();
+  checkServerHealth();
   document.getElementById("message").addEventListener("keypress", e => {
     if (e.key === "Enter") sendMessage();
   });

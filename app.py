@@ -572,6 +572,32 @@ def predict():
         return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
 
 
+
+# ─────────────────────────────────────────────
+# Keep-alive ping — prevents Railway free tier from sleeping
+# Pings /health every 5 minutes so the app stays warm for real users
+# ─────────────────────────────────────────────
+def _keep_alive():
+    import urllib.request
+    import time
+    # Wait for app to fully start first
+    time.sleep(60)
+    url = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+    if not url:
+        logger.info("No RAILWAY_PUBLIC_DOMAIN set — keep-alive disabled")
+        return
+    ping_url = f"https://{url}/health"
+    logger.info(f"Keep-alive started, pinging {ping_url} every 5 min")
+    while True:
+        try:
+            urllib.request.urlopen(ping_url, timeout=10)
+            logger.info("Keep-alive ping OK")
+        except Exception as e:
+            logger.warning(f"Keep-alive ping failed: {e}")
+        time.sleep(300)  # 5 minutes
+
+threading.Thread(target=_keep_alive, daemon=True).start()
+
 # ─────────────────────────────────────────────
 # Run
 # ─────────────────────────────────────────────
