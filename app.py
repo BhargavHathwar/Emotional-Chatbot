@@ -7,8 +7,16 @@ import re
 import threading
 
 import nltk
-nltk.download("stopwords", quiet=True)
-nltk.download("wordnet", quiet=True)
+
+# Download NLTK data to a local writable path (works on Railway, Render, etc.)
+NLTK_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nltk_data")
+os.makedirs(NLTK_DATA_DIR, exist_ok=True)
+nltk.data.path.insert(0, NLTK_DATA_DIR)
+for _pkg in ("stopwords", "wordnet", "omw-1.4"):
+    try:
+        nltk.download(_pkg, download_dir=NLTK_DATA_DIR, quiet=True)
+    except Exception:
+        nltk.download(_pkg, quiet=True)
 
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -396,7 +404,11 @@ def load_or_train():
             MODEL_LOADED = False
 
 
-threading.Thread(target=load_or_train, daemon=True).start()
+# Load model synchronously at startup so it's ready before first request.
+# On Railway/Render this runs once when the dyno starts — no cold-start delay.
+logger.info("Loading model at startup...")
+load_or_train()
+logger.info(f"Startup complete. MODEL_LOADED={MODEL_LOADED}")
 
 
 # ─────────────────────────────────────────────
