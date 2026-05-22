@@ -136,6 +136,12 @@ SYNONYM_MAP = {
         "compassion", "compassionate", "empathy", "empathetic",
         "nurture", "nurturing",
         "obsess", "obsessed", "obsession",
+        # Romantic / falling for someone
+        "falling", "fallen", "fancy", "fancying", "fancies",
+        "flirt", "flirting", "flirtatious",
+        "date", "dating", "girlfriend", "boyfriend", "partner", "sweetheart",
+        "butterflies", "feelings", "like", "liking",
+        "valentine", "dreaming",
     },
 
     # ── SADNESS / GRIEF ───────────────────────────────────────────────────
@@ -143,7 +149,7 @@ SYNONYM_MAP = {
         "sad", "sadness", "unhappy", "sorrowful", "sorrow",
         "grief", "grieve", "grieving", "mourn", "mourning",
         "heartbreak", "heartbroken", "broken",
-        "devastate", "devastated", "devastation", "crush", "crushed", "shatter", "shattered",
+        "devastate", "devastated", "devastation", "crushed", "shatter", "shattered",
         "depress", "depressed", "depression", "melancholy", "melancholic",
         "miserable", "misery", "gloomy", "gloom", "dejected", "dejection",
         "despondent", "despondency", "hopeless", "hopelessness",
@@ -154,7 +160,7 @@ SYNONYM_MAP = {
         "wound", "wounded", "suffer", "suffering",
         "disappoint", "disappointed", "disappointment",
         "disillusion", "disillusioned", "dishearten", "disheartened",
-        "gutted", "bummed", "miss", "missing", "longing", "homesick",
+        "gutted", "bummed", "homesick",
         "down", "blue", "low", "rough", "rotten", "awful",
     },
 
