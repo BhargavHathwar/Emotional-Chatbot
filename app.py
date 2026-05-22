@@ -444,7 +444,9 @@ def home():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok" if MODEL_LOADED else "loading", "model_loaded": MODEL_LOADED})
+    # Always return 200 so Railway's healthcheck never kills the container.
+    # Model loads in background — check model_loaded field to see if it's ready.
+    return jsonify({"status": "ok", "model_loaded": MODEL_LOADED}), 200
 
 
 @app.route("/predict", methods=["POST"])
