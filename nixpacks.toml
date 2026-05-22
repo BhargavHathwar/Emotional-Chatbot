@@ -6,8 +6,8 @@ cmds = ["pip install -r requirements.txt"]
 
 [phases.build]
 cmds = [
-  "python -c \"import nltk; nltk.download('stopwords'); nltk.download('wordnet'); nltk.download('omw-1.4'); print('NLTK data downloaded')\"",
-  "python -c \"import pickle, os; print('PKL files present:', [f for f in os.listdir('.') if f.endswith('.pkl')])\"" 
+  "python -c \"import nltk, os; dl=os.path.expanduser('~/nltk_data'); os.makedirs(dl, exist_ok=True); [nltk.download(p, download_dir=dl) for p in ('stopwords','wordnet','omw-1.4')]; print('NLTK data downloaded to', dl)\"",
+  "python -c \"import pickle, os; print('PKL files present:', [f for f in os.listdir('.') if f.endswith('.pkl')])\""
 ]
 
 [start]

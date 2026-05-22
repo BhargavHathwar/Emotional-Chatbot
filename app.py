@@ -8,28 +8,37 @@ import threading
 
 import nltk
 
-# Download NLTK data to a local writable path (works on Railway, Render, etc.)
+# ── NLTK data paths ──────────────────────────────────────────────────────────
+# Add the project-local nltk_data folder (writable at runtime) AND the home dir
+# (populated by nixpacks build phase) so whichever path was used during build
+# is always found at runtime.
 NLTK_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nltk_data")
 os.makedirs(NLTK_DATA_DIR, exist_ok=True)
-nltk.data.path.insert(0, NLTK_DATA_DIR)
+
+# Prepend both candidate paths; nltk searches them in order.
+for _p in [NLTK_DATA_DIR, os.path.expanduser("~/nltk_data")]:
+    if _p not in nltk.data.path:
+        nltk.data.path.insert(0, _p)
+
 
 def _ensure_nltk_package(pkg: str) -> bool:
     """Download an NLTK package if not already present. Returns True if available."""
-    # Check if already available
+    find_path = f"corpora/{pkg}" if pkg not in ("punkt", "averaged_perceptron_tagger") else f"tokenizers/{pkg}"
     try:
-        nltk.data.find(f"corpora/{pkg}" if pkg not in ("punkt", "averaged_perceptron_tagger") else f"tokenizers/{pkg}")
+        nltk.data.find(find_path)
         return True
     except LookupError:
         pass
-    # Try downloading to local dir first, then default path
-    for kwargs in [{"download_dir": NLTK_DATA_DIR}, {}]:
+    # Try all writable locations
+    for dl_dir in [NLTK_DATA_DIR, os.path.expanduser("~/nltk_data"), None]:
         try:
-            result = nltk.download(pkg, quiet=True, **kwargs)
-            if result:
+            kwargs = {"download_dir": dl_dir} if dl_dir else {}
+            if nltk.download(pkg, quiet=True, **kwargs):
                 return True
         except Exception:
             pass
     return False
+
 
 for _pkg in ("stopwords", "wordnet", "omw-1.4"):
     _ok = _ensure_nltk_package(_pkg)
@@ -543,8 +552,9 @@ def predict():
         })
 
     except Exception as e:
-        logger.error(f"Prediction error: {e}")
-        return jsonify({"error": "Prediction failed. Please try again."}), 500
+        import traceback
+        logger.error(f"Prediction error: {e}\n{traceback.format_exc()}")
+        return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
 
 
 # ─────────────────────────────────────────────
