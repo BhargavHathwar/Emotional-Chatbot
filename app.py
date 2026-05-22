@@ -12,11 +12,30 @@ import nltk
 NLTK_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nltk_data")
 os.makedirs(NLTK_DATA_DIR, exist_ok=True)
 nltk.data.path.insert(0, NLTK_DATA_DIR)
-for _pkg in ("stopwords", "wordnet", "omw-1.4"):
+
+def _ensure_nltk_package(pkg: str) -> bool:
+    """Download an NLTK package if not already present. Returns True if available."""
+    # Check if already available
     try:
-        nltk.download(_pkg, download_dir=NLTK_DATA_DIR, quiet=True)
-    except Exception:
-        nltk.download(_pkg, quiet=True)
+        nltk.data.find(f"corpora/{pkg}" if pkg not in ("punkt", "averaged_perceptron_tagger") else f"tokenizers/{pkg}")
+        return True
+    except LookupError:
+        pass
+    # Try downloading to local dir first, then default path
+    for kwargs in [{"download_dir": NLTK_DATA_DIR}, {}]:
+        try:
+            result = nltk.download(pkg, quiet=True, **kwargs)
+            if result:
+                return True
+        except Exception:
+            pass
+    return False
+
+for _pkg in ("stopwords", "wordnet", "omw-1.4"):
+    _ok = _ensure_nltk_package(_pkg)
+    if not _ok:
+        import warnings
+        warnings.warn(f"NLTK package '{_pkg}' could not be downloaded — some features may degrade gracefully.")
 
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -40,13 +59,23 @@ lemmatizer   = WordNetLemmatizer()
 # ─────────────────────────────────────────────
 # Preprocessing — MUST match train_model.py exactly
 # ─────────────────────────────────────────────
+def _safe_lemmatize(word: str, pos: str = "n") -> str:
+    """Lemmatize with graceful fallback — WordNet may not be available on all hosts."""
+    try:
+        return lemmatizer.lemmatize(word, pos=pos)
+    except Exception:
+        return word
+
+
 def preprocess(text):
+    # ⚠️  Must match train_and_save() exactly — NO lemmatization here.
+    # The vectorizer was trained on non-lemmatized tokens; lemmatizing at
+    # inference time creates unknown features and breaks predictions.
     text  = str(text).lower()
     text  = re.sub(r"http\S+", "", text)
     text  = re.sub(r"[^a-zA-Z\s']", "", text)
     words = text.split()
     words = [w for w in words if w not in effective_stop_words]
-    words = [lemmatizer.lemmatize(w) for w in words]
     return " ".join(words)
 
 
@@ -295,8 +324,8 @@ def synonym_lookup(text: str) -> str | None:
             continue
 
         # Single-word match — try raw, noun-lemma, and verb-lemma forms
-        lemma_n = lemmatizer.lemmatize(word, pos="n")   # default (noun)
-        lemma_v = lemmatizer.lemmatize(word, pos="v")   # verb form (e.g. cherishes→cherish)
+        lemma_n = _safe_lemmatize(word, pos="n")   # default (noun)
+        lemma_v = _safe_lemmatize(word, pos="v")   # verb form (e.g. cherishes→cherish)
         for form in (word, lemma_n, lemma_v):
             if form in WORD_TO_EMOTION:
                 return WORD_TO_EMOTION[form]
