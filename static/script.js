@@ -1,9 +1,12 @@
 const EMOTION_CONFIG = {
-  happy:   { emoji: "😊", color: "#e8944a", label: "Happy"   },
-  sad:     { emoji: "💙", color: "#5b90cc", label: "Sad"     },
-  stress:  { emoji: "😟", color: "#9b72cf", label: "Stressed"},
-  angry:   { emoji: "😠", color: "#d95555", label: "Angry"   },
-  neutral: { emoji: "🙂", color: "#8a9a88", label: "Neutral" },
+  joy:      { emoji: "😊", color: "#e8944a", label: "Happy"    },
+  love:     { emoji: "💖", color: "#e8607a", label: "Love"     },
+  sadness:  { emoji: "💙", color: "#5b90cc", label: "Sad"      },
+  worry:    { emoji: "😟", color: "#9b72cf", label: "Stressed" },
+  anger:    { emoji: "😠", color: "#d95555", label: "Angry"    },
+  surprise: { emoji: "😲", color: "#f0b429", label: "Surprised"},
+  neutral:  { emoji: "🙂", color: "#8a9a88", label: "Neutral"  },
+  unknown:  { emoji: "🤔", color: "#aaaaaa", label: "Unknown"  },
 };
 
 let messageCount   = 0;
@@ -52,10 +55,10 @@ function initChart() {
       scales: {
         x: { display: false },
         y: {
-          min: 0.5, max: 5.5,
+          min: 0.5, max: 7.5,
           ticks: {
             stepSize: 1,
-            callback: v => ({ 5:"😊", 4:"🙂", 3:"😟", 2:"💙", 1:"😠" }[v] || ""),
+            callback: v => ({ 7:"😊", 6:"💖", 5:"🙂", 4:"😟", 3:"💙", 2:"😲", 1:"😠" }[v] || ""),
             color: "rgba(44,36,22,0.35)",
             font: { size: 14 },
           },
@@ -71,9 +74,9 @@ function updateChart(emotion, confidence) {
   const cfg = EMOTION_CONFIG[emotion] || EMOTION_CONFIG.neutral;
   emotionHistory.push({ emotion, confidence });
   const ds = chart.data.datasets[0];
-  const EMOTION_Y = { happy: 5, neutral: 4, stress: 3, sad: 2, angry: 1 };
+  const EMOTION_Y = { joy: 7, love: 6, neutral: 5, worry: 4, sadness: 3, surprise: 2, anger: 1, unknown: 4 };
   chart.data.labels.push(String(emotionHistory.length));
-  ds.data.push(EMOTION_Y[emotion] || 3);
+  ds.data.push(EMOTION_Y[emotion] || 4);
   ds.pointBackgroundColor.push(cfg.color);
   if (ds.data.length > 20) {
     chart.data.labels.shift();
