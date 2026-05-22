@@ -319,27 +319,23 @@ def train_and_save():
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import train_test_split
 
-    logger.info("Training model from scratch...")
+    logger.info("Training model from scratch (memory-optimised)...")
 
     _stop_words = set(stopwords.words("english"))
     _keep       = {"not", "no", "never", "hate", "love", "don't", "didn't", "can't", "won't"}
     _eff_stop   = _stop_words - _keep
-    _lem        = WordNetLemmatizer()
 
+    # Simple preprocess — no lemmatization to save RAM & time
     def _preprocess(text):
         text  = str(text).lower()
         text  = re.sub(r"http\S+", "", text)
         text  = re.sub(r"[^a-zA-Z\s']", "", text)
-        words = text.split()
-        words = [w for w in words if w not in _eff_stop]
-        words = [_lem.lemmatize(w) for w in words]
+        words = [w for w in text.split() if w not in _eff_stop]
         return " ".join(words)
 
     data = pd.read_csv(os.path.join(BASE_DIR, "tweet_emotions.csv"))
     data = data[["content", "sentiment"]]
     data.columns = ["text", "emotion"]
-    data["text"]  = data["text"].apply(_preprocess)
-    data = data[data["text"].str.strip() != ""]
 
     emotion_map = {
         "happiness": "joy", "fun": "joy", "enthusiasm": "joy", "relief": "joy",
@@ -353,13 +349,27 @@ def train_and_save():
     data["emotion"] = data["emotion"].map(emotion_map)
     data = data.dropna()
 
-    vec = TfidfVectorizer(max_features=10000, ngram_range=(1, 2), sublinear_tf=True, min_df=2)
+    # Sample max 15k rows per class to keep memory under 512 MB
+    data = data.groupby("emotion", group_keys=False).apply(
+        lambda x: x.sample(min(len(x), 2000), random_state=42)
+    ).reset_index(drop=True)
+
+    data["text"] = data["text"].apply(_preprocess)
+    data = data[data["text"].str.strip() != ""]
+
+    logger.info(f"Training on {len(data)} rows across {data['emotion'].nunique()} emotions")
+
+    # Unigrams only + smaller vocab to keep sparse matrix small
+    vec = TfidfVectorizer(max_features=5000, ngram_range=(1, 1), sublinear_tf=True, min_df=2)
     X   = vec.fit_transform(data["text"])
     y   = data["emotion"]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-    mdl = LogisticRegression(max_iter=2000, C=1.0, solver="lbfgs")
+    mdl = LogisticRegression(max_iter=1000, C=1.0, solver="lbfgs", multi_class="multinomial")
     mdl.fit(X_train, y_train)
+
+    acc = mdl.score(X_test, y_test)
+    logger.info(f"Model accuracy: {acc:.2%}")
 
     pickle.dump(mdl, open(os.path.join(BASE_DIR, "emotion_model.pkl"), "wb"))
     pickle.dump(vec, open(os.path.join(BASE_DIR, "vectorizer.pkl"),    "wb"))
@@ -426,11 +436,9 @@ def load_or_train():
             MODEL_LOADED = False
 
 
-# Load model synchronously at startup so it's ready before first request.
-# On Railway/Render this runs once when the dyno starts — no cold-start delay.
-logger.info("Loading model at startup...")
-load_or_train()
-logger.info(f"Startup complete. MODEL_LOADED={MODEL_LOADED}")
+# Start model load in background thread so gunicorn starts immediately.
+logger.info("Scheduling model load in background thread...")
+threading.Thread(target=load_or_train, daemon=True).start()
 
 
 # ─────────────────────────────────────────────
