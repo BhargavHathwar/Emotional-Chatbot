@@ -6,8 +6,6 @@ A real-time emotion detection chatbot that understands how you feel and responds
 
 ---
 
-Live demo: https://web-production-04543.up.railway.app/
-
 ## ✨ Features
 
 - **Real-time emotion detection** — classifies your message into 7 emotions: Happy, Love, Sad, Stressed, Angry, Surprised, and Neutral
@@ -102,4 +100,4 @@ This app is deployed on **Railway** with automatic GitHub deploys.
 
 On first deploy, the app trains the ML model in a background thread so the server starts instantly. Once training completes (~60 seconds), all predictions are live.
 
-
+Live demo: `https://web-production-04543.up.railway.app`
